@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bir Masalın Başlangıcı... </title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Cinzel+Decorative:wght@700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- GENEL AYARLAR --- */
+        body { 
+            margin: 0; 
+            background-color: #0a0a0a; 
+            overflow: hidden; 
+            font-family: 'Playfair Display', serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #game-container { width: 100vw; height: 100vh; display: block; }
+        
+        #orientation-warning {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #2c3e50; color: #ecf0f1; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9999; text-align: center; font-family: sans-serif;
+        }
+
+        /* --- KİTAP TASARIMI --- */
+        .book-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0a0a0a;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 20000;
+            transition: opacity 1.5s ease-in-out;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .book-page {
+            width: 95%; height: 90%; max-width: 1200px;
+            background-color: #eaddca;
+            background-image: url("https://www.transparenttextures.com/patterns/aged-paper.png");
+            box-shadow: inset 0 0 150px rgba(56, 30, 10, 0.8), inset 0 0 30px rgba(0,0,0,0.5), 0 20px 50px rgba(0,0,0,0.9);
+            border: 10px solid #5c3a21; border-radius: 15px;
+            padding: 5vh 5vw; overflow-y: auto; text-align: center; position: relative; box-sizing: border-box;
+            color: #3a2510; text-shadow: 1px 1px 2px rgba(255, 239, 213, 0.5);
+        }
+
+        .story-text { font-size: 2.5vh; line-height: 1.8; }
+        .drop-cap { float: left; font-family: 'Cinzel Decorative', cursive; font-size: 10vh; line-height: 0.8; margin-right: 15px; margin-top: 5px; color: #8b0000; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .story-highlight { color: #8b0000; font-weight: bold; font-family: 'Cinzel Decorative', cursive; }
+        .handwriting { font-family: 'Dancing Script', cursive; font-size: 4vh; color: #8b0000; margin-top: 30px; font-weight: 700; }
+        .book-divider { font-size: 4vh; color: #5c3a21; margin: 20px 0; opacity: 0.6; }
+
+        .story-btn {
+            background: transparent; border: 3px solid #5c3a21; color: #5c3a21; padding: 15px 40px;
+            font-size: 2.5vh; font-family: 'Cinzel Decorative', cursive; cursor: pointer;
+            transition: all 0.4s ease; border-radius: 10px; margin-top: 40px; font-weight: bold;
+            box-shadow: inset 0 0 20px rgba(92, 58, 33, 0.2);
+            background-image: url("https://www.transparenttextures.com/patterns/aged-paper.png");
+        }
+        .story-btn:hover, .story-btn:active { background-color: #5c3a21; color: #eaddca; box-shadow: 0 0 30px rgba(255, 215, 0, 0.4); transform: scale(1.05); }
+
+        /* --- SİHİRLİ ÇERÇEVE TASARIMI --- */
+        .magic-frame {
+            margin: 30px auto;
+            width: 80%; /* Sayfa genişliğine göre ayarla */
+            max-width: 400px;
+            aspect-ratio: 4/3; /* Fotoğraf oranı (kare veya dikdörtgen) */
+            border: 8px double #8b4513; /* Antik çerçeve görünümü */
+            outline: 2px solid #daa520; /* Altın ince çizgi */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(0,0,0,0.5); /* Derinlik */
+            background: #000;
+            border-radius: 5px;
+            overflow: hidden; /* Dışarı taşan resmi kes */
+            position: relative;
+        }
+
+        #magic-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Resmi çerçeveye sığdır */
+            transition: opacity 1s ease-in-out; /* Yavaş geçiş efekti */
+            opacity: 0; /* Başlangıçta görünmez (fade-in için) */
+        }
+
+        /* --- GAME OVER MENÜSÜ --- */
+        #game-over-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(18, 28, 45, 0.9); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 10000; 
+        }
+        
+        .restart-card {
+            background: linear-gradient(180deg, #fff 0%, #f0f0f0 100%);
+            padding: 30px; border-radius: 20px; text-align: center;
+            border-top: 5px solid #d32f2f; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .restart-btn-main {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            border: none; color: white; padding: 15px 40px; font-size: 20px;
+            border-radius: 50px; cursor: pointer; font-family: 'Arial Black', sans-serif;
+            box-shadow: 0 5px 15px rgba(255, 165, 0, 0.4);
+        }
+
+        @media screen and (orientation: portrait) {
+            #orientation-warning { display: flex; }
+            #game-container, #intro-screen, #outro-screen, #game-over-overlay { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="orientation-warning">
+    <div style="font-size: 60px; margin-bottom: 20px;">📱↔️</div>
+    <h2>Lütfen Telefonu Yan Çevir</h2>
+    <p>Bu masal yatay ekranda okunur.</p>
+</div>
+
+<div id="intro-screen" class="book-overlay">
+    <div class="book-page">
+        <div class="story-text">
+            <p><span class="drop-cap"></span>Bir zamanlar, rengârenk bir krallıkta
+            gülüşüyle her yeri aydınlatan bir <span class="story-highlight">prens</span> yaşardı.</p>
+            <div class="book-divider">~ ⚜️ ~</div>
+            <p>Ancak bir gün, karanlık güçler onu bu dünyadan kopardı. Krallık sessizliğe büründü.</p>
+            <p>Fakat umut hâlâ vardı. Çünkü prens biliyordu ki onu kurtarmaya gelecek biri vardı.</p>
+            <div class="book-divider">~ ⚔️ ~</div>
+            <p>Ve bu masal mutlu bitmek zorunda.</p>
+        </div>
+        <button class="story-btn" onclick="startGameStory()">Masala Devam Et ✨</button>
+    </div>
+</div>
+
+<div id="outro-screen" class="book-overlay" style="display: none;">
+    <div class="book-page">
+        <div class="story-text">
+            <p><span class="drop-cap"></span>Masallarda prens kurtarır derler ama bu masalda kalbim yolumu gösterdi.</p>
+            <p>Korkmuyorum, çünkü sevgim korkumdan daha güçlü.</p>
+            <div class="book-divider">~ ❤️ ~</div>
+            <p>Senin için değil, bizim için buradayım.</p>
+            <p>Kader seni beklememi istedi ama kalbim seni kurtarmamı seçti.</p>
+            <div class="book-divider">~ 💖 ~</div>
+            <p>Bir prensesin tacı cesaretidir; benim cesaretim sensin.</p>
+            <p>Elimi uzatıyorum, çünkü gerçek masallar birlikte yazılır.</p>
+
+            
+            <div class="handwriting">Seni karanlıktan çıkaracak ışık benim sevgilim</div>
+            <div class="handwriting" style="font-size: 5vh; margin-top: 20px;">Evlilik yıldönümümüz kutlu olsun✨</div>
+
+            <div class="magic-frame">
+                <img id="magic-photo" src="foto1.jpg" alt="Mutlu Anılar">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="game-over-overlay">
+    <div class="restart-card">
+        <h2 style="color:#d32f2f; margin-top:0; font-family: sans-serif;">Pes Etmek Yok!</h2>
+        <p style="color:#555; margin-bottom: 20px; font-family: sans-serif;">Prens seni bekliyor.</p>
+        <button class="restart-btn-main" onclick="restartGameHTML()">TEKRAR DENE ↻</button>
+    </div>
+</div>
+
+<div id="game-container"></div>
+
+<script>
+    const config = {
+        type: Phaser.AUTO,
+        parent: 'game-container',
+        scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%', autoCenter: Phaser.Scale.CENTER_BOTH },
+        backgroundColor: '#87CEEB',
+        physics: { default: 'arcade', arcade: { gravity: { y: 2200 }, debug: false } },
+        scene: { preload: preload, create: create, update: update }
+    };
+
+    const game = new Phaser.Game(config);
+
+    // --- HTML FONKSİYONLARI ---
+    
+    function startGameStory() {
+        const intro = document.getElementById('intro-screen');
+        intro.style.opacity = '0';
+        setTimeout(() => {
+            intro.style.display = 'none';
+            isGameStarted = true;
+            if(music && !music.isPlaying) music.play();
+        }, 1500);
+    }
+
+    function restartGameHTML() {
+        document.getElementById('game-over-overlay').style.display = 'none';
+        const gameScene = game.scene.scenes[0];
+        if (gameScene) { gameScene.scene.restart({ isRetry: true }); }
+    }
+
+    // --- SLAYT GÖSTERİSİ KODU ---
+    let photoArray = ['foto1.jpg', 'foto2.jpg','foto3.jpg', 'foto4.jpg','foto5.jpg','foto6.jpg']; // Dosya adlarını kontrol et
+    let photoIdx = 0;
+    let slideInterval;
+
+    function startPhotoSlideshow() {
+        const imgElement = document.getElementById('magic-photo');
+        imgElement.style.opacity = 1; // İlk resmi göster
+
+        if (slideInterval) clearInterval(slideInterval); // Varsa eskisini temizle
+
+        slideInterval = setInterval(() => {
+            // 1. Resmi Karart
+            imgElement.style.opacity = 0;
+
+            // 2. Resim değiştikten sonra aydınlat (Fade effect)
+            setTimeout(() => {
+                photoIdx = (photoIdx + 1) % photoArray.length;
+                imgElement.src = photoArray[photoIdx];
+                imgElement.style.opacity = 1;
+            }, 1000); // 1 saniye bekle (transition süresiyle aynı olmalı)
+
+        }, 4000); // Her 4 saniyede bir değiştir
+    }
+
+    // --- OYUN DEĞİŞKENLERİ ---
+    let player, princess, cursors, enemies, isGameFinished = false, score = 0, scoreText, warningText;
+    let hearts, music, movingPlatforms, bgStatic, bgParallax, isGameStarted = false;
+    let btnLeft, btnRight, btnJump, isLeftDown = false, isRightDown = false, isJumpDown = false;
+    let sfxJump, sfxWin, sfxGameOver, sfxCollect;
+    let mapWidth = 12000; 
+    const GROUND_HEIGHT = 64; 
+    const TARGET_SCORE = 200; 
+
+    function preload() {
+        this.load.image('background', 'background.png'); 
+        this.load.image('zemin', 'zemin.jpg'); 
+        this.load.spritesheet('prens', 'prens_6li.png', { frameWidth: 189, frameHeight: 219 }); 
+        this.load.image('prenses', 'prenses.png');
+        this.load.image('obstacles', 'Obstacles.png'); 
+        this.load.image('hareketliEngel', 'hareketliEngel.png');
+        this.load.image('kule', 'kule.png');
+        this.load.image('btnSol', 'btnSol.png'); 
+        this.load.image('btnSag', 'btnSag.png'); 
+        this.load.image('btnZip', 'btnZip.png'); 
+        this.load.image('foto1', 'foto1.jpg');
+        this.load.image('foto2', 'foto2.jpg');
+        this.load.image('foto3', 'foto3.jpg');
+        this.load.image('foto4', 'foto4.jpg');
+        this.load.image('foto5', 'foto5.jpg');
+        this.load.image('foto6', 'foto6.jpg');
+        this.load.image('spike', 'spike.png');
+        this.load.image('enemy', 'enemy.png');
+        this.load.image('heart', 'https://labs.phaser.io/assets/sprites/heart.png');
+        this.load.audio('theme', 'muzik.mp3');
+        this.load.audio('ziplama', 'ziplama.mp3');
+        this.load.audio('alkis', 'alkis.mp3');
+        this.load.audio('gameover', 'gameover.mp3'); 
+        this.load.audio('kalp', 'kalp.mp3'); 
+    }
+
+    function create(data) {
+        this.sound.stopAll();
+        isGameFinished = false; 
+        score = 0;
+        
+        music = this.sound.add('theme', { loop: true, volume: 0.4 });
+        sfxJump = this.sound.add('ziplama', { volume: 0.5 });
+        sfxWin = this.sound.add('alkis', { volume: 0.8 });
+        sfxGameOver = this.sound.add('gameover', { volume: 0.8 });
+        sfxCollect = this.sound.add('kalp', { volume: 0.6 });
+
+        if (data && data.isRetry) {
+            isGameStarted = true;
+            music.play();
+            document.getElementById('intro-screen').style.display = 'none'; 
+        } else {
+            isGameStarted = false; 
+        }
+
+        bgStatic = this.add.image(0, 0, 'background').setOrigin(0, 0).setScrollFactor(0).setDepth(-2);
+        bgStatic.setDisplaySize(this.scale.width, this.scale.height);
+        bgParallax = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background');
+        bgParallax.setOrigin(0, 0).setScrollFactor(0).setAlpha(0.3).setDepth(-1);
+
+        const platforms = this.physics.add.staticGroup();
+        const bottomY = this.scale.height - GROUND_HEIGHT;
+        
+        createFloor(this, platforms, 0, 800);
+        createFloor(this, platforms, 1000, 1500);
+        createFloor(this, platforms, 1700, 2400);
+        createFloor(this, platforms, 2600, 4000); 
+        createFloor(this, platforms, 4150, 4800); 
+        createFloor(this, platforms, 5000, 6000); 
+        createFloor(this, platforms, 6300, 7500);
+        createFloor(this, platforms, 7700, 8500); 
+        createFloor(this, platforms, 9500, 10200); 
+        createFloor(this, platforms, 10500, 12000); 
+
+        createBlock(platforms, 450, bottomY - 60);
+        createBlock(platforms, 650, bottomY - 160);
+        createBlock(platforms, 1800, bottomY - 80);
+        createBlock(platforms, 2000, bottomY - 200);
+        createBlock(platforms, 2200, bottomY - 80);
+        createBlock(platforms, 4300, bottomY - 90);
+        createBlock(platforms, 4500, bottomY - 180);
+        createBlock(platforms, 4700, bottomY - 270);
+        createBlock(platforms, 5200, bottomY - 200);
+        createBlock(platforms, 5500, bottomY - 200);
+        createBlock(platforms, 6600, bottomY - 100);
+        createBlock(platforms, 6800, bottomY - 220);
+        createBlock(platforms, 7100, bottomY - 100);
+        createBlock(platforms, 8600, bottomY - 100);
+        createBlock(platforms, 8750, bottomY - 180); 
+        createBlock(platforms, 8900, bottomY - 260); 
+        createBlock(platforms, 9100, bottomY - 180); 
+        createBlock(platforms, 9300, bottomY - 100);
+        createBlock(platforms, 9650, bottomY - 100);
+        createBlock(platforms, 9850, bottomY - 220); 
+        createBlock(platforms, 10050, bottomY - 150);
+
+        movingPlatforms = this.physics.add.group({allowGravity: false, immovable: true});
+        let mp1 = movingPlatforms.create(900, bottomY - 100, 'hareketliEngel').setDisplaySize(150, 32); mp1.setMoveData(850, 950, 100);
+        let mp2 = movingPlatforms.create(2500, bottomY - 50, 'hareketliEngel').setDisplaySize(120, 32); mp2.setMoveData(2450, 2550, 150);
+        let mp3 = movingPlatforms.create(4900, bottomY - 100, 'hareketliEngel').setDisplaySize(140, 32); mp3.setMoveData(4800, 5000, 100);
+        let mp4 = movingPlatforms.create(6150, bottomY - 50, 'hareketliEngel').setDisplaySize(120, 32); mp4.setMoveData(6000, 6300, 150);
+        let mp5 = movingPlatforms.create(10350, bottomY - 100, 'hareketliEngel').setDisplaySize(130, 32); mp5.setMoveData(10250, 10450, 120);
+        //let mp6 = movingPlatforms.create(11000, bottomY - 200, 'hareketliEngel').setDisplaySize(100, 32); mp6.setMoveData(10800, 11200, 200);
+
+        const spikes = this.physics.add.staticGroup();
+        createSpike(spikes, 700, bottomY);
+        createSpike(spikes, 1250, bottomY);
+        createSpike(spikes, 1900, bottomY);
+        createSpike(spikes, 3200, bottomY);
+        createSpike(spikes, 4400, bottomY);
+        createSpike(spikes, 5350, bottomY);
+        createSpike(spikes, 6500, bottomY);
+        createSpike(spikes, 7400, bottomY);
+        createSpike(spikes, 8100, bottomY); 
+        createSpike(spikes, 9600, bottomY); 
+        createSpike(spikes, 10050, bottomY); 
+        //createSpike(spikes, 11500, bottomY); 
+
+        enemies = this.physics.add.group({ allowGravity: true, collideWorldBounds: false });
+        createEnemy(enemies, 1300, bottomY - 50, 150);
+        createEnemy(enemies, 2800, bottomY - 50, 250);
+        createEnemy(enemies, 3500, bottomY - 50, 200);
+        createEnemy(enemies, 5700, bottomY - 50, 200);
+        createEnemy(enemies, 7400, bottomY - 50, 300);
+        createEnemy(enemies, 8400, bottomY - 50, 150);
+        createEnemy(enemies, 9950, bottomY - 50, 100);
+        createEnemy(enemies, 10600, bottomY - 50, 300); 
+        //createEnemy(enemies, 11300, bottomY - 50, 100); 
+
+        // --- PRENS AYARLARI ---
+        // Genişliği 90, Boyu 136 (Hafifçe genişletildi)
+        player = this.physics.add.sprite(100, bottomY - 200, 'prens');
+        player.setOrigin(0.5, 1).setDisplaySize(90, 136).setBounce(0.0).setCollideWorldBounds(false); 
+
+        // setSize(genişlik, yükseklik): Hitbox boyutunu ayarlar.
+    // setOffset(x, y): Hitbox'ı görselin içinde kaydırır.
+    player.body.setSize(100, 180); // Görünenden daha ince ve kısa bir hitbox
+    player.body.setOffset(50, 30); // Kutuyu karakterin göbeğine ortalamak için deneme yanılma yapman gerekebilir
+        
+        this.anims.create({ key: 'yuru', frames: this.anims.generateFrameNumbers('prens', { start: 0, end: 5 }), frameRate: 10, repeat: -1 });
+        this.anims.create({ key: 'dur', frames: [ { key: 'prens', frame: 0 } ], frameRate: 20 });
+
+        // --- KULE AYARLARI ---
+        // Sola kaydırıldı ve genişletildi (1000x650)
+        let tower = this.add.image(mapWidth - 300, bottomY + 0, 'kule').setOrigin(0.5, 1).setDisplaySize(700, 500);
+        
+        // --- PRENSES AYARLARI ---
+        // Prens'ten daha büyük ve uzun (100x155) ve kule önüne çekildi.
+        princess = this.physics.add.staticSprite(mapWidth - 650, bottomY, 'prenses');
+        princess.setOrigin(0.5, 1).setDisplaySize(100, 155).setFlipX(true).refreshBody(); 
+
+        hearts = this.physics.add.group();
+        // 30 KALP (ORTA)
+        for (let i = 0; i < 30; i++) {
+            let x = Phaser.Math.Between(300, mapWidth - 400);
+            let y = Phaser.Math.Between(100, bottomY - 200);
+            let heart = hearts.create(x, y, 'heart').setDisplaySize(35, 35).setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+        }
+
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(player, movingPlatforms, moveWithPlatform, null, this);
+        this.physics.add.collider(hearts, platforms);
+        this.physics.add.collider(hearts, movingPlatforms);
+        this.physics.add.collider(enemies, platforms); 
+
+        this.physics.add.overlap(player, princess, checkWinCondition, null, this);
+        this.physics.add.overlap(player, hearts, collectHeart, null, this);
+        this.physics.add.collider(player, spikes, hitDanger, null, this); 
+        this.physics.add.collider(player, enemies, hitDanger, null, this); 
+
+        scoreText = this.add.text(20, 20, 'Sevgi: 0 / ' + TARGET_SCORE, { fontSize: '28px', fill: '#FFF', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setScrollFactor(0);
+        warningText = this.add.text(this.scale.width/2, this.scale.height/2, '', { fontSize: '40px', fill: '#FF0000', stroke: '#FFF', strokeThickness: 6, fontStyle:'bold' }).setOrigin(0.5).setScrollFactor(0).setAlpha(0);
+
+        this.cameras.main.setBounds(0, 0, mapWidth, this.scale.height);
+        this.cameras.main.startFollow(player, true, 0.08, 0.08);
+
+        createVirtualButtons(this);
+        cursors = this.input.keyboard.createCursorKeys();
+        this.input.addPointer(2);
+        this.scale.on('resize', resize, this);
+    }
+
+    function createFloor(scene, group, startX, endX) {
+        let y = scene.scale.height; let width = endX - startX;
+        let floor = group.create(startX + (width / 2), y, 'zemin');
+        floor.setOrigin(0.5, 0).setDisplaySize(width, GROUND_HEIGHT).setY(y - GROUND_HEIGHT).refreshBody();
+    }
+    function createBlock(group, x, y) { group.create(x, y, 'obstacles').setDisplaySize(100, 32).refreshBody(); }
+    function createSpike(group, x, y) { let s = group.create(x, y, 'spike'); s.setOrigin(0.5, 1); s.setDisplaySize(60, 60); s.refreshBody(); s.body.setSize(15, 25); s.body.setOffset(22, 35); }
+    function createEnemy(group, x, y, dist) { let e = group.create(x, y, 'enemy'); e.setOrigin(0.5, 1); e.setDisplaySize(60, 60); e.startX = x; e.travelDistance = dist; e.setVelocityX(100); }
+
+    function hitDanger(player, danger) {
+        if (isGameFinished) return;
+        isGameFinished = true; 
+        player.body.setVelocity(0, 0);
+        player.body.checkCollision.none = true; 
+        player.body.allowGravity = false; 
+        player.setTint(0xff0000); 
+        player.anims.play('dur');
+        if(btnLeft) btnLeft.setVisible(false);
+        if(btnRight) btnRight.setVisible(false);
+        if(btnJump) btnJump.setVisible(false);
+        if (music) music.stop();
+        try { sfxGameOver.play(); } catch(e){}
+        document.getElementById('game-over-overlay').style.display = 'flex';
+    }
+
+    function resize (gameSize) {
+        const width = gameSize.width; const height = gameSize.height;
+        this.cameras.main.setViewport(0, 0, width, height);
+        if (bgStatic) bgStatic.setDisplaySize(width, height);
+        if (bgParallax) bgParallax.setSize(width, height);
+        if(btnLeft) { btnLeft.setPosition(80, height - 80); btnRight.setPosition(220, height - 80); btnJump.setPosition(width - 80, height - 80); }
+    }
+
+    function update() {
+        if (!isGameStarted || isGameFinished) return;
+        if (bgParallax) bgParallax.tilePositionX = this.cameras.main.scrollX * 0.25;
+
+        movingPlatforms.children.iterate(function (p) {
+            if (p.moveRight) { p.body.setVelocityX(p.moveSpeed); if (p.x > p.maxMoveX) p.moveRight = false; } 
+            else { p.body.setVelocityX(-p.moveSpeed); if (p.x < p.minMoveX) p.moveRight = true; }
+        });
+
+        if (enemies) {
+            enemies.children.iterate(function (e) {
+                if (e.x > e.startX + e.travelDistance) { e.setVelocityX(-100); e.setFlipX(true); } 
+                else if (e.x < e.startX - e.travelDistance) { e.setVelocityX(100); e.setFlipX(false); }
+            });
+        }
+
+        let isMoving = false;
+        if (cursors.left.isDown || isLeftDown) { player.setVelocityX(-350); player.setFlipX(true); player.anims.play('yuru', true); isMoving = true; } 
+        else if (cursors.right.isDown || isRightDown) { player.setVelocityX(350); player.setFlipX(false); player.anims.play('yuru', true); isMoving = true; } 
+        else { player.setVelocityX(0); if (player.body.touching.down) { player.anims.play('dur', true); } }
+
+        if ((cursors.up.isDown || isJumpDown) && (player.body.blocked.down || player.body.touching.down)) {
+            player.setVelocityY(-800); try { sfxJump.play(); } catch(e){}
+        }
+        
+        if (player.y > this.scale.height + 100) { hitDanger.call(this, player, null); }
+    }
+
+    function moveWithPlatform(player, platform) { if (player.body.touching.down && platform.body.touching.up) { player.body.velocity.x += platform.body.velocity.x; } }
+    Phaser.GameObjects.Sprite.prototype.setMoveData = function(min, max, speed) { this.minMoveX = min; this.maxMoveX = max; this.moveSpeed = speed; this.moveRight = true; };
+
+    function collectHeart (player, heart) {
+        heart.disableBody(true, true); score += 10;
+        scoreText.setText('Sevgi: ' + score + ' / ' + TARGET_SCORE);
+        try { sfxCollect.play(); } catch(e){}
+    }
+
+    function checkWinCondition(player, princess) {
+        if (score < TARGET_SCORE) {
+            warningText.setText("Yetersiz Sevgi!\n" + (TARGET_SCORE - score) + " puan daha topla!");
+            warningText.setAlpha(1);
+            this.tweens.add({ targets: warningText, alpha: 0, delay: 1500, duration: 1000 });
+            player.setVelocityX(player.x < princess.x ? -500 : 500); player.setVelocityY(-300);
+            this.cameras.main.shake(200, 0.01); return;
+        }
+        finishGame(this);
+    }
+
+    function finishGame(scene) {
+        isGameFinished = true; scene.physics.pause();
+        player.setVisible(false); princess.setVisible(false); scoreText.setVisible(false);
+        if(btnLeft) btnLeft.setVisible(false); if(btnRight) btnRight.setVisible(false); if(btnJump) btnJump.setVisible(false);
+        try { sfxWin.play(); } catch(e){}
+        
+        // Final Sayfasını Aç
+        document.getElementById('outro-screen').style.display = 'flex';
+        // Slayt gösterisini başlat
+        startPhotoSlideshow();
+    }
+
+    function createVirtualButtons(scene) {
+        const h = scene.scale.height; const w = scene.scale.width;
+        btnLeft = scene.add.image(80, h - 80, 'btnSol').setInteractive().setScrollFactor(0).setDepth(100); btnLeft.setDisplaySize(80, 80);
+        btnLeft.on('pointerdown', () => { isLeftDown = true; btnLeft.setAlpha(0.5); }); btnLeft.on('pointerup', () => { isLeftDown = false; btnLeft.setAlpha(1); }); btnLeft.on('pointerout', () => { isLeftDown = false; btnLeft.setAlpha(1); });
+        btnRight = scene.add.image(220, h - 80, 'btnSag').setInteractive().setScrollFactor(0).setDepth(100); btnRight.setDisplaySize(80, 80);
+        btnRight.on('pointerdown', () => { isRightDown = true; btnRight.setAlpha(0.5); }); btnRight.on('pointerup', () => { isRightDown = false; btnRight.setAlpha(1); }); btnRight.on('pointerout', () => { isRightDown = false; btnRight.setAlpha(1); });
+        btnJump = scene.add.image(w - 80, h - 80, 'btnZip').setInteractive().setScrollFactor(0).setDepth(100); btnJump.setDisplaySize(80, 80);
+        btnJump.on('pointerdown', () => { isJumpDown = true; btnJump.setAlpha(0.5); }); btnJump.on('pointerup', () => { isJumpDown = false; btnJump.setAlpha(1); }); btnJump.on('pointerout', () => { isJumpDown = false; btnJump.setAlpha(1); });
+    }
+</script>
+</body>
+</html>
