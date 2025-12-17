@@ -82,7 +82,8 @@
         #magic-photo {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Resmi çerçeveye sığdır */
+            /*object-fit: cover; /* Resmi çerçeveye sığdır */
+            object-fit: contain;  /* Resmin tamamını sığdırır, kesmez */
             transition: opacity 1s ease-in-out; /* Yavaş geçiş efekti */
             opacity: 0; /* Başlangıçta görünmez (fade-in için) */
         }
@@ -150,7 +151,7 @@
 
             
             <div class="handwriting">Seni karanlıktan çıkaracak ışık benim sevgilim</div>
-            <div class="handwriting" style="font-size: 5vh; margin-top: 20px;">Evlilik yıldönümümüz kutlu olsun✨</div>
+            <div class="handwriting" style="font-size: 5vh; margin-top: 20px;">Evlilik yıl dönümümüz kutlu olsun✨</div>
 
             <div class="magic-frame">
                 <img id="magic-photo" src="foto1.jpg" alt="Mutlu Anılar">
@@ -356,7 +357,7 @@
         // --- PRENS AYARLARI ---
         // Genişliği 90, Boyu 136 (Hafifçe genişletildi)
         player = this.physics.add.sprite(100, bottomY - 200, 'prens');
-        player.setOrigin(0.5, 1).setDisplaySize(90, 136).setBounce(0.0).setCollideWorldBounds(false); 
+        player.setOrigin(0.5, 1).setDisplaySize(110, 145).setBounce(0.0).setCollideWorldBounds(false); 
 
         // setSize(genişlik, yükseklik): Hitbox boyutunu ayarlar.
     // setOffset(x, y): Hitbox'ı görselin içinde kaydırır.
